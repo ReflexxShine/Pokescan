@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"/>
+  <title>FlexScan</title>
+  <link rel="manifest" href="manifest.json"/>
+  <meta name="theme-color" content="#0F0F1A"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="FlexScan"/>
+  <link rel="apple-touch-icon" href="icon-192.png"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --ink:#0F0F1A;--ink2:#1E1E30;
+      --amber:#F59E0B;--amber-l:#FEF3C7;--amber-d:#92400E;
+      --teal:#0D9488;--teal-l:#CCFBF1;--teal-d:#134E4A;
+      --red:#EF4444;
+      --bg:#F6F6F9;--card:#FFFFFF;--text:#111827;
+      --muted:#6B7280;--hint:#9CA3AF;
+      --border:rgba(0,0,0,0.07);--bmed:rgba(0,0,0,0.13);
+      --r:16px;--rs:10px;
+      --shadow:0 1px 3px rgba(0,0,0,0.07),0 4px 12px rgba(0,0,0,0.05);
+      --shadow-md:0 2px 8px rgba(0,0,0,0.08),0 8px 24px rgba(0,0,0,0.07);
+    }
+    @media(prefers-color-scheme:dark){:root{
+      --bg:#0F0F1A;--card:#1A1A2E;--text:#F1F0FF;
+      --muted:#9CA3AF;--hint:#4B5563;
+      --border:rgba(255,255,255,0.07);--bmed:rgba(255,255,255,0.13);
+      --shadow:0 1px 3px rgba(0,0,0,0.3),0 4px 12px rgba(0,0,0,0.2);
+      --shadow-md:0 2px 8px rgba(0,0,0,0.4),0 8px 24px rgba(0,0,0,0.3);
+    }}
+    body{background:var(--bg);font-family:'Plus Jakarta Sans',system-ui,sans-serif;color:var(--text);min-height:100dvh;-webkit-font-smoothing:antialiased}
+    #app{max-width:430px;margin:0 auto;min-height:100dvh;display:flex;flex-direction:column;position:relative}
+
+    /* ── TOP HEADER ── */
+    .hdr{
+      background:var(--ink);
+      padding:0 18px;
+      padding-top:env(safe-area-inset-top,0px);
+      display:flex;align-items:center;justify-content:space-between;
+      position:sticky;top:0;z-index:30;height:calc(58px + env(safe-area-inset-top,0px));
+    }
+    .logo-wrap{display:flex;align-items:center;gap:9px}
+    .logo-icon{width:30px;height:30px;flex-shrink:0}
+    .logo-text{font-size:20px;font-weight:800;letter-spacing:-0.5px;color:#fff;line-height:1}
+    .logo-text em{color:var(--amber);font-style:normal}
+    .hdr-pills{display:flex;gap:5px}
+    .hpill{padding:7px 14px;font-size:12px;font-weight:600;border-radius:20px;border:none;cursor:pointer;background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.55);font-family:inherit;transition:all .15s}
+    .hpill.active{background:var(--amber);color:var(--ink);box-shadow:0 0 0 0px var(--amber)}
+    .hpill .badge-n{display:inline-block;background:rgba(255,255,255,0.25);border-radius:20px;padding:0 5px;font-size:10px;margin-left:3px;line-height:16px}
+    .hpill.active .badge-n{background:rgba(0,0,0,0.18);color:var(--ink)}
+
+    /* ── BODY ── */
+    .body{flex:1;padding:16px 14px 40px;overflow-y:auto}
+
+    /* ── HERO SEARCH ── */
+    .hero{
+      background:var(--ink2);
+      border-radius:var(--r);margin-bottom:14px;
+      padding:20px 16px 16px;
+      position:relative;overflow:hidden;
+    }
+    .hero::before{content:'';position:absolute;top:-30px;right:-30px;width:120px;height:120px;border-radius:50%;background:rgba(245,158,11,0.12);pointer-events:none}
+    .hero::after{content:'';position:absolute;bottom:-20px;left:-20px;width:80px;height:80px;border-radius:50%;background:rgba(13,148,136,0.08);pointer-events:none}
+    .hero-label{font-size:11px;font-weight:600;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px}
+    .hero-search{position:relative}
+    .hero-search input{
+      width:100%;padding:14px 50px 14px 16px;
+      border:1.5px solid rgba(255,255,255,0.1);border-radius:var(--rs);
+      background:rgba(255,255,255,0.07);color:#fff;font-size:16px;font-weight:500;
+      outline:none;font-family:inherit;transition:border-color .15s,background .15s;
+    }
+    .hero-search input::placeholder{color:rgba(255,255,255,0.3)}
+    .hero-search input:focus{border-color:var(--amber);background:rgba(255,255,255,0.1)}
+    .hero-sbtn{
+      position:absolute;right:8px;top:50%;transform:translateY(-50%);
+      width:34px;height:34px;background:var(--amber);border:none;border-radius:8px;
+      cursor:pointer;display:flex;align-items:center;justify-content:center;transition:opacity .15s;
+    }
+    .hero-sbtn:active{opacity:.8}
+
+    /* ── HISTORY CHIPS ── */
+    .hist-wrap{margin-bottom:14px}
+    .hist-lbl{font-size:10px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px}
+    .chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+    .chips::-webkit-scrollbar{display:none}
+    .chip{flex-shrink:0;padding:5px 12px;font-size:12px;font-weight:500;border:.5px solid var(--bmed);border-radius:20px;background:var(--card);color:var(--muted);cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .12s;box-shadow:var(--shadow)}
+    .chip:active{background:var(--amber-l);border-color:var(--amber);color:var(--amber-d)}
+
+    /* ── SOON BANNER ── */
+    .soon{
+      border:.5px solid var(--border);border-radius:var(--r);
+      padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:16px;
+      background:var(--card);box-shadow:var(--shadow);
+    }
+    .soon-ic{width:36px;height:36px;border-radius:10px;background:var(--amber-l);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+    .soon-title{font-size:13px;font-weight:700;margin-bottom:1px}
+    .soon-sub{font-size:11px;color:var(--muted)}
+    .coming-pill{font-size:10px;font-weight:700;padding:4px 9px;background:var(--amber-l);color:var(--amber-d);border-radius:20px;flex-shrink:0}
+
+    /* ── SECTION HEADING ── */
+    .sec-hd{font-size:11px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:.6px;margin:16px 0 9px}
+
+    /* ── SURFACE CARD ── */
+    .surface{background:var(--card);border:.5px solid var(--border);border-radius:var(--r);margin-bottom:12px;overflow:hidden;box-shadow:var(--shadow)}
+    .sp{padding:14px}
+
+    /* ── METRICS ── */
+    .metrics{display:flex;gap:8px;margin-bottom:12px}
+    .metric{flex:1;background:var(--card);border:.5px solid var(--border);border-radius:var(--rs);padding:12px 14px;box-shadow:var(--shadow)}
+    .metric-l{font-size:10px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+    .metric-v{font-size:22px;font-weight:800}
+
+    /* ── MINI COLLECTION (HOME) ── */
+    .mi{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:.5px solid var(--border);cursor:pointer;transition:background .1s}
+    .mi:last-child{border-bottom:none}
+    .mi:active{background:var(--bg)}
+    .mi img{width:36px;height:50px;object-fit:cover;border-radius:4px;flex-shrink:0;box-shadow:0 1px 4px rgba(0,0,0,.15)}
+    .mn{font-size:13px;font-weight:700;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .mq{font-size:10px;color:var(--hint);margin-top:1px;font-weight:500}
+    .mp{font-size:13px;font-weight:700;flex-shrink:0}
+    .va-btn{width:100%;padding:12px;background:transparent;border:none;border-top:.5px solid var(--border);color:var(--amber-d);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit}
+
+    /* ── SPINNING LOADER ── */
+    .spin-wrap{display:flex;flex-direction:column;align-items:center;padding:70px 20px}
+    .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--amber);border-radius:50%;animation:spin .75s linear infinite;margin-bottom:16px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .pb{width:140px;height:3px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:12px}
+    .pf{height:100%;background:var(--amber);border-radius:3px;animation:prog 2.5s ease-in-out forwards}
+    @keyframes prog{0%{width:0%}60%{width:75%}100%{width:92%}}
+
+    /* ── CARD DETAIL ── */
+    .ci{display:flex;gap:14px;padding:16px}
+    .ci-img{width:90px;border-radius:10px;flex-shrink:0;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+    .cn{font-size:20px;font-weight:800;margin-bottom:3px;line-height:1.2}
+    .cs{font-size:12px;color:var(--muted);font-weight:500;margin-bottom:3px}
+    .cnum{font-size:11px;color:var(--hint);margin-bottom:10px;font-weight:500}
+    .badge{display:inline-block;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;background:var(--amber-l);color:var(--amber-d)}
+
+    /* ── PRICE TABLE ── */
+    .ph{padding:11px 14px 9px;border-bottom:.5px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+    .ph-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+    .src-pill{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;background:#EEF2FF;color:#4338CA}
+    @media(prefers-color-scheme:dark){.src-pill{background:#1e1e4a;color:#818CF8}}
+    .pr{padding:11px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:.5px solid var(--border)}
+    .pr:last-child{border-bottom:none}
+    .pr.hl{background:var(--teal-l)}
+    @media(prefers-color-scheme:dark){.pr.hl{background:rgba(13,148,136,0.12)}}
+    .pr.hl .pl{color:var(--teal-d);font-weight:600}
+    .pr.hl .pv{color:var(--teal-d);font-weight:800;font-size:17px}
+    .pl{font-size:13px;color:var(--muted);font-weight:500}
+    .pv{font-size:14px;font-weight:700}
+    .pavg{padding:11px 14px;display:flex;justify-content:space-between;background:var(--bg);border-top:.5px solid var(--border)}
+    .pavg-l{font-size:12px;font-weight:700;color:var(--muted)}
+    .pavg-v{font-size:14px;font-weight:800}
+
+    /* ── QTY + ADD ROW ── */
+    .qty-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-top:.5px solid var(--border);background:var(--bg)}
+    .qty-lbl{font-size:12px;font-weight:600;color:var(--muted);flex:1}
+    .qty-ctrl{display:flex;align-items:center;border:.5px solid var(--bmed);border-radius:var(--rs);overflow:hidden;background:var(--card)}
+    .qb{width:34px;height:34px;border:none;background:transparent;color:var(--text);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:500;font-family:inherit}
+    .qb:active{background:var(--amber-l)}
+    .qv{width:32px;text-align:center;font-size:15px;font-weight:700;border-left:.5px solid var(--border);border-right:.5px solid var(--border)}
+    .add-btn{padding:10px 16px;background:var(--ink);color:#fff;border:none;border-radius:var(--rs);font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;transition:opacity .15s}
+    .add-btn:active{opacity:.75}
+    @media(prefers-color-scheme:dark){.add-btn{background:var(--amber);color:var(--ink)}}
+
+    /* ── THUMBNAILS ── */
+    .thumbs{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;scroll-behavior:smooth}
+    .thumbs::-webkit-scrollbar{height:3px}
+    .thumbs::-webkit-scrollbar-thumb{background:var(--bmed);border-radius:3px}
+    .timg{width:56px;height:78px;object-fit:cover;border-radius:7px;cursor:pointer;border:2.5px solid transparent;flex-shrink:0;transition:border-color .12s,transform .1s;box-shadow:var(--shadow)}
+    .timg.active{border-color:var(--amber);transform:scale(1.04)}
+
+    /* ── BACK BUTTON ── */
+    .back-btn{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;background:var(--card);border:.5px solid var(--border);border-radius:20px;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:14px;box-shadow:var(--shadow);color:var(--text);font-family:inherit}
+
+    /* ── COLLECTION LIST ── */
+    .li{background:var(--card);border:.5px solid var(--border);border-radius:var(--r);padding:11px;display:flex;gap:11px;align-items:center;margin-bottom:8px;cursor:pointer;box-shadow:var(--shadow);transition:transform .1s}
+    .li:active{transform:scale(.99)}
+    .li img{width:46px;height:64px;object-fit:cover;border-radius:6px;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,.15)}
+    .ln{font-size:14px;font-weight:700}
+    .lm{font-size:11px;color:var(--muted);margin-top:2px;font-weight:500}
+    .lv{text-align:right;flex-shrink:0}
+    .lp{font-size:14px;font-weight:800}
+    .lq{font-size:10px;color:var(--hint);margin-top:2px;font-weight:500}
+
+    /* ── EMPTY STATE ── */
+    .empty{text-align:center;padding:48px 20px}
+    .empty-icon{width:64px;height:64px;background:var(--card);border-radius:20px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;box-shadow:var(--shadow);font-size:28px}
+    .empty p{color:var(--muted);font-size:14px;font-weight:500;line-height:1.6}
+    .empty-btn{margin-top:16px;padding:12px 22px;background:var(--ink);color:#fff;border:none;border-radius:var(--rs);font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+    @media(prefers-color-scheme:dark){.empty-btn{background:var(--amber);color:var(--ink)}}
+
+    /* ── TOAST ── */
+    .toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:22px;font-size:13px;font-weight:600;z-index:100;white-space:nowrap;animation:tin .18s ease;box-shadow:0 4px 20px rgba(0,0,0,.25)}
+    @keyframes tin{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="hdr">
+    <div class="logo-wrap">
+      <svg class="logo-icon" viewBox="0 0 30 30" fill="none">
+        <rect width="30" height="30" rx="8" fill="#F59E0B"/>
+        <rect x="5" y="8" width="3" height="14" rx="1.5" fill="#0F0F1A"/>
+        <rect x="10" y="8" width="1.5" height="14" rx=".75" fill="#0F0F1A"/>
+        <rect x="13.5" y="8" width="3" height="14" rx="1.5" fill="#0F0F1A"/>
+        <rect x="18.5" y="8" width="1.5" height="14" rx=".75" fill="#0F0F1A"/>
+        <rect x="22" y="8" width="3" height="14" rx="1.5" fill="#0F0F1A"/>
+        <rect x="4" y="12" width="22" height="6" rx="1" fill="rgba(255,255,255,0.25)"/>
+      </svg>
+      <div class="logo-text">Flex<em>Scan</em></div>
+    </div>
+    <div class="hdr-pills">
+      <button class="hpill active" id="tab-scan" onclick="goScreen('home')">Zoeken</button>
+      <button class="hpill" id="tab-coll" onclick="goScreen('collection')">Collectie<span class="badge-n" id="coll-count" style="display:none"></span></button>
+    </div>
+  </div>
+  <div class="body" id="body"></div>
+</div>
+<script>
+const API="https://api.pokemontcg.io/v2";
+var state={
+  screen:"home",cards:[],active:null,thumbScrollLeft:0,qty:1,
+  collection:JSON.parse(localStorage.getItem("fs_coll")||localStorage.getItem("ps_coll")||"[]"),
+  history:JSON.parse(localStorage.getItem("fs_hist")||localStorage.getItem("ps_hist")||"[]"),
+  loading:false,toast:null,toastTimer:null
+};
+function saveCol(){localStorage.setItem("fs_coll",JSON.stringify(state.collection))}
+function saveHist(q){
+  state.history=[q,...state.history.filter(h=>h.toLowerCase()!==q.toLowerCase())].slice(0,10);
+  localStorage.setItem("fs_hist",JSON.stringify(state.history));
+}
+function fmt(n){if(!n&&n!==0)return"—";return"€\u00a0"+parseFloat(n).toFixed(2).replace(".",",")}
+function getPrices(card){
+  const p=[];
+  if(card?.cardmarket?.prices){
+    const cp=card.cardmarket.prices;
+    [["Laagste prijs",cp.lowPrice],["Gem. verkoop",cp.averageSellPrice],["Trendprijs",cp.trendPrice],["Gem. 7d",cp.avg7],["Gem. 30d",cp.avg30]]
+      .forEach(([l,v])=>{if(v>0)p.push({label:l,value:v})});
+    if(p.length)return{list:p.slice(0,5),source:"Cardmarket"};
+  }
+  if(card?.tcgplayer?.prices){
+    const tp=card.tcgplayer.prices;
+    Object.entries(tp).forEach(([k,v])=>{
+      if(v?.low)p.push({label:k+" (laag)",value:v.low});
+      if(v?.market)p.push({label:k+" (markt)",value:v.market});
+    });
+    if(p.length)return{list:p.slice(0,5),source:"TCGPlayer"};
+  }
+  return{list:[],source:null};
+}
+function getAvg(prices){if(!prices.length)return 0;return prices.reduce((s,p)=>s+p.value,0)/prices.length}
+function showToast(msg){
+  if(state.toastTimer)clearTimeout(state.toastTimer);
+  state.toast=msg;renderToast();
+  state.toastTimer=setTimeout(()=>{state.toast=null;renderToast();},2500);
+}
+function renderToast(){
+  let t=document.getElementById("toast-el");
+  if(state.toast){if(!t){t=document.createElement("div");t.id="toast-el";t.className="toast";document.body.appendChild(t);}t.textContent=state.toast;}
+  else if(t)t.remove();
+}
+function goScreen(s){state.screen=s;render()}
+function setQty(n){
+  state.qty=Math.max(1,Math.min(99,n));
+  const v=document.getElementById("qty-val");if(v)v.textContent=state.qty;
+}
+async function searchCards(q){
+  if(!q||!q.trim())return;
+  q=q.trim();
+  state.screen="scanning";state.loading=true;render();saveHist(q);
+  try{
+    const r=await fetch(`${API}/cards?q=name:"${encodeURIComponent(q)}"&pageSize=30&orderBy=-set.releaseDate`);
+    const d=await r.json();
+    let res=(d.data||[]).filter(c=>c.images?.small);
+    if(!res.length){
+      const r2=await fetch(`${API}/cards?q=name:${encodeURIComponent(q+"*")}&pageSize=30&orderBy=-set.releaseDate`);
+      const d2=await r2.json();
+      res=(d2.data||[]).filter(c=>c.images?.small);
+    }
+    if(res.length){state.cards=res;state.active=res[0];state.qty=1;state.thumbScrollLeft=0;state.screen="results";}
+    else{showToast(`Niets gevonden voor "${q}"`);state.screen="home";}
+  }catch{showToast("Verbindingsfout — probeer opnieuw");state.screen="home";}
+  state.loading=false;render();
+}
+function selectThumb(id){
+  const el=document.getElementById("thumbs-row");
+  if(el)state.thumbScrollLeft=el.scrollLeft;
+  state.active=state.cards.find(x=>x.id===id);
+  state.qty=1;
+  const det=document.getElementById("card-det");
+  if(det){det.outerHTML=renderDetail();}else render();
+  requestAnimationFrame(()=>{const t=document.getElementById("thumbs-row");if(t)t.scrollLeft=state.thumbScrollLeft;});
+}
+function addToCollection(){
+  if(!state.active)return;
+  const qty=state.qty||1;
+  const ex=state.collection.find(c=>c.id===state.active.id);
+  const{list,source}=getPrices(state.active);
+  const avg=getAvg(list);
+  if(ex){ex.qty=(ex.qty||1)+qty;ex.avgPrice=avg;}
+  else{state.collection.unshift({id:state.active.id,name:state.active.name,set:state.active.set,number:state.active.number,rarity:state.active.rarity,images:state.active.images,avgPrice:avg,priceSource:source,qty:qty,addedAt:new Date().toLocaleDateString("nl-NL")});}
+  saveCol();
+  showToast(qty>1?`${qty}× ${state.active.name} toegevoegd`:`${state.active.name} toegevoegd`);
+  state.qty=1;render();
+}
+function doSearch(){const e=document.getElementById("main-q");if(e&&e.value.trim())searchCards(e.value.trim());}
+function quickSearch(q){searchCards(q);}
+
+function renderHome(){
+  const totalVal=state.collection.reduce((s,c)=>s+((c.avgPrice||0)*(c.qty||1)),0);
+  const totalCards=state.collection.reduce((s,c)=>s+(c.qty||1),0);
+  return`
+    <div class="hero">
+      <div class="hero-label">Pokémon kaart opzoeken</div>
+      <div class="hero-search">
+        <input type="text" id="main-q" placeholder="Charizard, Pikachu, Mewtwo..." autocomplete="off" autocorrect="off" spellcheck="false"
+          onkeydown="if(event.key==='Enter')doSearch()" />
+        <button class="hero-sbtn" onclick="doSearch()">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="6.5" cy="6.5" r="4.5" stroke="white" stroke-width="2"/><line x1="10.2" y1="10.2" x2="14" y2="14" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+    </div>
+    ${state.history.length?`
+    <div class="hist-wrap">
+      <div class="hist-lbl">Recent gezocht</div>
+      <div class="chips">${state.history.map(h=>`<button class="chip" onclick="quickSearch('${h.replace(/\\/g,"\\\\").replace(/'/g,"\\'")}')">⏱ ${h}</button>`).join("")}</div>
+    </div>`:""}
+    <div class="soon">
+      <div class="soon-ic">📷</div>
+      <div style="flex:1"><div class="soon-title">Kaart scannen</div><div class="soon-sub">Camera-functie komt binnenkort</div></div>
+      <div class="coming-pill">Binnenkort</div>
+    </div>
+    ${state.collection.length>0?`
+    <div class="sec-hd">Mijn collectie</div>
+    <div class="metrics">
+      <div class="metric"><div class="metric-l">Kaarten</div><div class="metric-v">${totalCards}</div></div>
+      <div class="metric"><div class="metric-l">Waarde</div><div class="metric-v">${fmt(totalVal)}</div></div>
+    </div>
+    <div class="surface">
+      ${state.collection.slice(0,5).map(c=>`
+        <div class="mi" onclick="searchCards('${c.name.replace(/\\/g,"\\\\").replace(/'/g,"\\'")}')">
+          ${c.images?.small?`<img src="${c.images.small}" loading="lazy" />`:""}
+          <div style="flex:1;min-width:0">
+            <div class="mn">${c.name}</div>
+            <div class="mq">${c.qty>1?c.qty+"× · ":""}${c.set?.name||""}</div>
+          </div>
+          <div class="mp">${fmt((c.avgPrice||0)*(c.qty||1))}</div>
+        </div>`).join("")}
+      ${state.collection.length>5?`<button class="va-btn" onclick="goScreen('collection')">Bekijk alle ${state.collection.length} kaarten →</button>`:""}
+    </div>`:`
+    <div class="empty" style="padding:28px 20px">
+      <div class="empty-icon">🃏</div>
+      <p>Zoek een kaart en voeg hem<br>toe aan je collectie</p>
+    </div>`}`;
+}
+
+function renderDetail(){
+  const card=state.active;if(!card)return"";
+  const{list:prices,source}=getPrices(card);
+  const avg=getAvg(prices);
+  const ex=state.collection.find(c=>c.id===card.id);
+  return`<div id="card-det">
+    <div class="surface">
+      <div class="ci">
+        ${card.images?.small?`<img class="ci-img" src="${card.images.small}" loading="lazy" />`:""}
+        <div style="flex:1;min-width:0">
+          <div class="cn">${card.name}</div>
+          <div class="cs">${card.set?.name||""}</div>
+          <div class="cnum">#${card.number}${card.set?.printedTotal?" / "+card.set.printedTotal:""}</div>
+          ${card.rarity?`<span class="badge">${card.rarity}</span>`:""}
+        </div>
+      </div>
+    </div>
+    <div class="surface">
+      <div class="ph">
+        <span class="ph-title">${source==="Cardmarket"?"Cardmarket":source==="TCGPlayer"?"TCGPlayer":"Marktprijzen"}</span>
+        ${source?`<span class="src-pill">${source}</span>`:""}
+      </div>
+      ${prices.length===0
+        ?`<div style="padding:20px;text-align:center;color:var(--hint);font-size:13px;font-weight:500">Geen prijsdata beschikbaar</div>`
+        :prices.map((p,i)=>`<div class="pr ${i===0?"hl":""}"><span class="pl">${i===0?"▼ ":""}${p.label}</span><span class="pv">${fmt(p.value)}</span></div>`).join("")+
+        `<div class="pavg"><span class="pavg-l">Gemiddelde top ${prices.length}</span><span class="pavg-v">${fmt(avg)}</span></div>`}
+      <div class="qty-row">
+        <span class="qty-lbl">${ex?"Nog toevoegen:":"Aantal:"}</span>
+        <div class="qty-ctrl">
+          <button class="qb" onclick="setQty(state.qty-1)">−</button>
+          <span class="qv" id="qty-val">${state.qty}</span>
+          <button class="qb" onclick="setQty(state.qty+1)">+</button>
+        </div>
+        <button class="add-btn" onclick="addToCollection()">${ex?`+ Meer (${ex.qty}×)`:"+ Collectie"}</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderResults(){
+  return`
+    <button class="back-btn" onclick="goScreen('home')">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 2L4 7l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Terug
+    </button>
+    ${renderDetail()}
+    ${state.cards.length>1?`
+    <div class="surface sp">
+      <div style="font-size:11px;font-weight:700;color:var(--hint);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">${state.cards.length} versies — tik om te wisselen</div>
+      <div class="thumbs" id="thumbs-row">
+        ${state.cards.map(c=>`<img class="timg ${state.active.id===c.id?"active":""}" src="${c.images.small}" loading="lazy" onclick="selectThumb('${c.id}')" />`).join("")}
+      </div>
+    </div>`:""}`;
+}
+
+function renderScanning(){
+  return`<div class="spin-wrap">
+    <div class="spinner"></div>
+    <p style="font-size:14px;font-weight:600;color:var(--muted);margin-bottom:5px">Kaart opzoeken…</p>
+    <p style="font-size:12px;color:var(--hint);font-weight:500">Prijzen ophalen bij Cardmarket</p>
+    <div class="pb"><div class="pf"></div></div>
+  </div>`;
+}
+
+function renderCollection(){
+  const total=state.collection.reduce((s,c)=>s+((c.avgPrice||0)*(c.qty||1)),0);
+  const totalCards=state.collection.reduce((s,c)=>s+(c.qty||1),0);
+  if(!state.collection.length)return`<div class="empty">
+    <div class="empty-icon">📦</div>
+    <p>Je collectie is nog leeg.<br>Zoek je eerste kaart om te beginnen.</p>
+    <button class="empty-btn" onclick="goScreen('home')">Zoek een kaart</button>
+  </div>`;
+  return`
+    <div class="metrics">
+      <div class="metric"><div class="metric-l">Totaal kaarten</div><div class="metric-v">${totalCards}</div></div>
+      <div class="metric"><div class="metric-l">Totale waarde</div><div class="metric-v">${fmt(total)}</div></div>
+    </div>
+    ${state.collection.map(c=>`
+      <div class="li" onclick="searchCards('${c.name.replace(/\\/g,"\\\\").replace(/'/g,"\\'")}')">
+        ${c.images?.small?`<img src="${c.images.small}" loading="lazy" />`:""}
+        <div style="flex:1;min-width:0">
+          <div class="ln">${c.name}</div>
+          <div class="lm">${c.set?.name||""} · ${c.addedAt}</div>
+        </div>
+        <div class="lv">
+          <div class="lp">${fmt((c.avgPrice||0)*(c.qty||1))}</div>
+          <div class="lq">${c.qty>1?c.qty+"× · "+fmt(c.avgPrice)+" p.st.":"1 kaart"}</div>
+        </div>
+      </div>`).join("")}`;
+}
+
+function render(){
+  const body=document.getElementById("body");
+  const onScan=["home","scanning","results"].includes(state.screen);
+  document.getElementById("tab-scan").className="hpill"+(onScan?" active":"");
+  document.getElementById("tab-coll").className="hpill"+(state.screen==="collection"?" active":"");
+  const tc=state.collection.reduce((s,c)=>s+(c.qty||1),0);
+  const cn=document.getElementById("coll-count");
+  if(tc>0){cn.textContent=tc;cn.style.display="inline-block";}else{cn.style.display="none";}
+  if(state.screen==="home")body.innerHTML=renderHome();
+  else if(state.screen==="scanning")body.innerHTML=renderScanning();
+  else if(state.screen==="results")body.innerHTML=renderResults();
+  else if(state.screen==="collection")body.innerHTML=renderCollection();
+  if(state.screen==="results"&&state.thumbScrollLeft>0){
+    requestAnimationFrame(()=>{const t=document.getElementById("thumbs-row");if(t)t.scrollLeft=state.thumbScrollLeft;});
+  }
+  renderToast();
+}
+render();
+</script>
+<script>if("serviceWorker"in navigator)navigator.serviceWorker.register("sw.js");</script>
+</body>
+</html>
