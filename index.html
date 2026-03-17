@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>PokéScan</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#EF9F27" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="PokéScan" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --gold: #EF9F27;
+      --gold-light: #FFF3CC;
+      --gold-dark: #7A4F00;
+      --green: #1D9E75;
+      --green-light: #E1F5EE;
+      --green-dark: #0F6E56;
+      --bg: #f5f5f3;
+      --card: #ffffff;
+      --text: #1a1a1a;
+      --muted: #666;
+      --hint: #999;
+      --border: rgba(0,0,0,0.1);
+      --border-med: rgba(0,0,0,0.2);
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1a1a1a;
+        --card: #2a2a2a;
+        --text: #f0f0f0;
+        --muted: #aaa;
+        --hint: #777;
+        --border: rgba(255,255,255,0.1);
+        --border-med: rgba(255,255,255,0.2);
+      }
+    }
+    body { background: var(--bg); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: var(--text); min-height: 100dvh; }
+    #app { max-width: 430px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column; }
+
+    /* Header */
+    .header { background: var(--card); border-bottom: 0.5px solid var(--border); padding: 14px 16px env(safe-area-inset-top, 0); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+    .header-title { font-size: 18px; font-weight: 600; }
+    .header-title span { color: var(--gold); }
+    .tabs { display: flex; gap: 4px; }
+    .tab { padding: 5px 12px; font-size: 12px; border: 0.5px solid var(--border-med); border-radius: 20px; background: transparent; color: var(--muted); cursor: pointer; font-weight: 500; }
+    .tab.active { background: var(--gold-light); color: var(--gold-dark); border-color: var(--gold); }
+
+    /* Body */
+    .body { flex: 1; padding: 16px; overflow-y: auto; }
+
+    /* Card surface */
+    .surface { background: var(--card); border: 0.5px solid var(--border); border-radius: var(--radius); margin-bottom: 12px; overflow: hidden; }
+    .surface-pad { padding: 14px; }
+
+    /* Viewfinder */
+    .viewfinder { height: 220px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: var(--bg); }
+    .vf-corner { position: absolute; width: 24px; height: 24px; }
+    .vf-tl { top: 16px; left: 16px; border-top: 2.5px solid var(--gold); border-left: 2.5px solid var(--gold); border-radius: 3px 0 0 0; }
+    .vf-tr { top: 16px; right: 16px; border-top: 2.5px solid var(--gold); border-right: 2.5px solid var(--gold); border-radius: 0 3px 0 0; }
+    .vf-bl { bottom: 16px; left: 16px; border-bottom: 2.5px solid var(--gold); border-left: 2.5px solid var(--gold); border-radius: 0 0 0 3px; }
+    .vf-br { bottom: 16px; right: 16px; border-bottom: 2.5px solid var(--gold); border-right: 2.5px solid var(--gold); border-radius: 0 0 3px 0; }
+    .vf-icon { text-align: center; }
+    .vf-icon svg { display: block; margin: 0 auto 8px; }
+    .vf-icon p { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+    /* Scanning animation */
+    .scan-line { position: absolute; width: calc(100% - 40px); height: 2px; background: linear-gradient(90deg, transparent, var(--gold), transparent); animation: scanMove 1.8s ease-in-out infinite; }
+    @keyframes scanMove { 0%,100%{top:30px;opacity:0.3} 50%{top:calc(100% - 30px);opacity:1} }
+
+    /* Buttons */
+    .btn { width: 100%; padding: 14px; border: none; border-radius: var(--radius); font-size: 15px; font-weight: 600; cursor: pointer; margin-bottom: 10px; }
+    .btn-gold { background: var(--gold); color: #fff; }
+    .btn-gold:disabled { opacity: 0.45; cursor: default; }
+    .btn-outline { background: transparent; border: 0.5px solid var(--border-med); color: var(--text); font-size: 14px; font-weight: 500; margin-bottom: 0; }
+
+    /* Search row */
+    .search-row { display: flex; gap: 8px; margin-bottom: 14px; }
+    .search-row input { flex: 1; padding: 12px 14px; border: 0.5px solid var(--border-med); border-radius: var(--radius-sm); background: var(--card); color: var(--text); font-size: 14px; outline: none; }
+    .search-row input:focus { border-color: var(--gold); }
+    .search-row button { padding: 0 16px; background: var(--gold); border: none; border-radius: var(--radius-sm); color: #fff; font-weight: 600; cursor: pointer; font-size: 14px; flex-shrink: 0; }
+    .search-row button:disabled { opacity: 0.4; cursor: default; }
+
+    /* Divider */
+    .divider { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .divider-line { flex: 1; height: 0.5px; background: var(--border); }
+    .divider-txt { font-size: 11px; color: var(--hint); }
+
+    /* Metrics */
+    .metrics { display: flex; gap: 8px; margin-bottom: 4px; }
+    .metric { flex: 1; background: var(--card); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; }
+    .metric-label { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+    .metric-val { font-size: 20px; font-weight: 600; }
+
+    /* Card detail header */
+    .card-info { display: flex; gap: 14px; padding: 14px; }
+    .card-info img { width: 80px; border-radius: 6px; flex-shrink: 0; }
+    .card-info-text { flex: 1; min-width: 0; }
+    .card-name { font-size: 18px; font-weight: 600; margin-bottom: 3px; }
+    .card-set { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+    .card-num { font-size: 11px; color: var(--hint); margin-bottom: 8px; }
+    .badge { display: inline-block; font-size: 10px; padding: 3px 8px; border-radius: 20px; background: var(--gold-light); color: var(--gold-dark); font-weight: 500; }
+
+    /* Prices */
+    .prices-header { padding: 10px 14px 8px; border-bottom: 0.5px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .prices-header span { font-size: 13px; font-weight: 600; }
+    .source-pill { font-size: 10px; padding: 2px 8px; border-radius: 20px; background: #e8f0fe; color: #1a56b0; }
+    .price-row { padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; border-bottom: 0.5px solid var(--border); }
+    .price-row:last-child { border-bottom: none; }
+    .price-row.highlight { background: var(--green-light); }
+    .price-row.highlight .price-label { color: var(--green-dark); font-weight: 500; }
+    .price-row.highlight .price-val { color: var(--green-dark); font-weight: 600; }
+    .price-label { font-size: 13px; color: var(--muted); }
+    .price-val { font-size: 14px; font-weight: 600; }
+    .price-avg-row { padding: 10px 14px; display: flex; justify-content: space-between; background: var(--bg); border-top: 0.5px solid var(--border); }
+    .price-avg-row span { font-size: 13px; font-weight: 600; }
+
+    /* Thumbnails */
+    .thumbs-label { font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+    .thumbs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; }
+    .thumbs img { width: 52px; border-radius: 5px; cursor: pointer; border: 2px solid transparent; flex-shrink: 0; }
+    .thumbs img.active { border-color: var(--gold); }
+
+    /* Action buttons */
+    .actions { display: flex; gap: 8px; }
+    .act-btn { flex: 1; padding: 13px; border-radius: var(--radius-sm); font-size: 14px; font-weight: 600; cursor: pointer; border: 0.5px solid var(--border-med); background: transparent; color: var(--text); }
+    .act-btn.primary { background: var(--gold); border-color: var(--gold); color: #fff; flex: 2; }
+    .act-btn.added { background: var(--green-light); border-color: var(--green); color: var(--green-dark); flex: 2; cursor: default; }
+
+    /* Collection */
+    .coll-item { background: var(--card); border: 0.5px solid var(--border); border-radius: var(--radius-sm); padding: 10px; display: flex; gap: 10px; align-items: center; margin-bottom: 8px; cursor: pointer; }
+    .coll-item img { width: 48px; border-radius: 4px; flex-shrink: 0; }
+    .coll-info { flex: 1; min-width: 0; }
+    .coll-name { font-size: 14px; font-weight: 600; }
+    .coll-set { font-size: 11px; color: var(--muted); margin-top: 1px; }
+    .coll-date { font-size: 10px; color: var(--hint); margin-top: 3px; }
+    .coll-val { text-align: right; flex-shrink: 0; }
+    .coll-price { font-size: 14px; font-weight: 600; }
+    .coll-price-label { font-size: 10px; color: var(--hint); margin-top: 1px; }
+
+    /* Empty state */
+    .empty { text-align: center; padding: 60px 20px; }
+    .empty svg { display: block; margin: 0 auto 14px; opacity: 0.3; }
+    .empty p { color: var(--muted); font-size: 14px; margin-bottom: 14px; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 13px; font-weight: 500; z-index: 100; white-space: nowrap; animation: toastIn 0.2s ease; }
+    @keyframes toastIn { from{opacity:0;transform:translateX(-50%) translateY(8px)} to{opacity:1;transform:translateX(-50%) translateY(0)} }
+
+    /* Progress */
+    .progress-bar { width: 160px; height: 3px; background: var(--border); border-radius: 2px; overflow: hidden; margin-top: 12px; }
+    .progress-fill { height: 100%; background: var(--gold); border-radius: 2px; animation: progAnim 2.5s ease-in-out forwards; }
+    @keyframes progAnim { 0%{width:0%} 60%{width:75%} 100%{width:92%} }
+
+    /* Camera */
+    #camera-container { position: relative; width: 100%; aspect-ratio: 5 / 7; background: #000; overflow: hidden; border-radius: var(--radius) var(--radius) 0 0; }
+    #video { width: 100%; height: 100%; object-fit: cover; }
+    #canvas { display: none; }
+
+    /* OCR result screen */
+    .ocr-preview { width: 100%; max-height: 200px; object-fit: contain; border-radius: var(--radius) var(--radius) 0 0; background: #000; display: block; }
+    .ocr-found { padding: 12px 14px; background: var(--green-light); border-bottom: 0.5px solid var(--border); }
+    .ocr-found-label { font-size: 11px; color: var(--green-dark); margin-bottom: 4px; font-weight: 500; }
+    .ocr-edit { width: 100%; padding: 10px 12px; border: 0.5px solid var(--border-med); border-radius: var(--radius-sm); background: var(--card); color: var(--text); font-size: 16px; font-weight: 600; outline: none; margin-bottom: 0; }
+    .ocr-edit:focus { border-color: var(--gold); }
+
+    /* Install banner */
+    .install-banner { background: var(--gold-light); border: 0.5px solid var(--gold); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .install-banner p { flex: 1; font-size: 12px; color: var(--gold-dark); line-height: 1.4; }
+    .install-banner button { font-size: 11px; padding: 5px 10px; background: var(--gold); color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; flex-shrink: 0; }
+    .install-x { background: none; border: none; color: var(--gold-dark); cursor: pointer; font-size: 16px; padding: 0; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="header">
+    <div class="header-title">Poké<span>Scan</span></div>
+    <div class="tabs">
+      <button class="tab active" id="tab-scan" onclick="goScreen('home')">Scannen</button>
+      <button class="tab" id="tab-coll" onclick="goScreen('collection')">Collectie <span id="coll-count"></span></button>
+    </div>
+  </div>
+  <div class="body" id="body"></div>
+</div>
+
+<script>
+const API = "https://api.pokemontcg.io/v2";
+let state = {
+  screen: "home",
+  cards: [],
+  active: null,
+  collection: JSON.parse(localStorage.getItem("pokescan_collection") || "[]"),
+  loading: false,
+  toast: null,
+  toastTimer: null,
+  cameraStream: null,
+  installPrompt: null,
+  showInstallBanner: !localStorage.getItem("install_dismissed")
+};
+
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();
+  state.installPrompt = e;
+  render();
+});
+
+function saveCollection() {
+  localStorage.setItem("pokescan_collection", JSON.stringify(state.collection));
+}
+
+function fmt(n) {
+  if (!n && n !== 0) return "—";
+  return "€ " + parseFloat(n).toFixed(2).replace(".", ",");
+}
+
+function getPrices(card) {
+  const prices = [];
+  if (card?.cardmarket?.prices) {
+    const p = card.cardmarket.prices;
+    [
+      ["Laagste prijs", p.lowPrice],
+      ["Gem. verkoopprijs", p.averageSellPrice],
+      ["Trendprijs", p.trendPrice],
+      ["Gem. 7 dagen", p.avg7],
+      ["Gem. 30 dagen", p.avg30],
+    ].forEach(([l, v]) => { if (v > 0) prices.push({ label: l, value: v }); });
+    if (prices.length) return { list: prices.slice(0, 5), source: "Cardmarket" };
+  }
+  if (card?.tcgplayer?.prices) {
+    const p = card.tcgplayer.prices;
+    Object.entries(p).forEach(([k, v]) => {
+      if (v?.low) prices.push({ label: k + " (laag)", value: v.low });
+      if (v?.market) prices.push({ label: k + " (markt)", value: v.market });
+    });
+    if (prices.length) return { list: prices.slice(0, 5), source: "TCGPlayer" };
+  }
+  return { list: [], source: null };
+}
+
+function getAvg(prices) {
+  if (!prices.length) return 0;
+  return prices.reduce((s, p) => s + p.value, 0) / prices.length;
+}
+
+function showToast(msg) {
+  if (state.toastTimer) clearTimeout(state.toastTimer);
+  state.toast = msg;
+  render();
+  state.toastTimer = setTimeout(() => { state.toast = null; render(); }, 2500);
+}
+
+function goScreen(s) {
+  if (state.cameraStream) { state.cameraStream.getTracks().forEach(t => t.stop()); state.cameraStream = null; }
+  state.screen = s;
+  render();
+}
+
+async function searchCards(q) {
+  if (!q || !q.trim()) return;
+  state.loading = true;
+  state.screen = "scanning";
+  render();
+  try {
+    const res = await fetch(`${API}/cards?q=name:${encodeURIComponent(q.trim())}&pageSize=20&orderBy=-set.releaseDate`);
+    const data = await res.json();
+    const results = (data.data || []).filter(c => c.images?.small);
+    if (results.length) {
+      state.cards = results;
+      state.active = results[0];
+      state.screen = "results";
+    } else {
+      showToast(`Geen kaarten gevonden voor "${q}"`);
+      state.screen = "home";
+    }
+  } catch {
+    showToast("Verbindingsfout, probeer opnieuw");
+    state.screen = "home";
+  }
+  state.loading = false; render();
+}
+
+async function startCamera() {
+  state.screen = "camera"; render();
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment", width: { ideal: 720 }, height: { ideal: 1280 } } });
+    state.cameraStream = stream;
+    setTimeout(() => {
+      const v = document.getElementById("video");
+      if (v) { v.srcObject = stream; v.play(); }
+    }, 50);
+  } catch {
+    showToast("Camera niet beschikbaar");
+    state.screen = "home"; render();
+  }
+}
+
+function captureAndOCR() {
+  const video = document.getElementById("video");
+  const canvas = document.getElementById("canvas");
+  if (!video || !canvas) return;
+
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext("2d").drawImage(video, 0, 0);
+
+  state.capturedImage = canvas.toDataURL("image/jpeg", 0.85);
+  state.ocrName = "";
+
+  if (state.cameraStream) { state.cameraStream.getTracks().forEach(t => t.stop()); state.cameraStream = null; }
+
+  state.screen = "ocrresult";
+  render();
+  // Direct focus - works on Android; iOS needs a tap but input is prominent
+  const inp = document.getElementById("ocr-name-input");
+  if (inp) inp.focus();
+}
+
+function searchFromOcr() {
+  const name = state.ocrName || "";
+  if (!name.trim()) {
+    const inp = document.getElementById("ocr-name-input");
+    if (inp) inp.focus();
+    return;
+  }
+  searchCards(name.trim());
+}
+
+function addToCollection() {
+  if (!state.active) return;
+  if (state.collection.find(c => c.id === state.active.id)) { showToast("Staat al in je collectie"); return; }
+  const { list, source } = getPrices(state.active);
+  state.collection.unshift({
+    id: state.active.id,
+    name: state.active.name,
+    set: state.active.set,
+    number: state.active.number,
+    rarity: state.active.rarity,
+    images: state.active.images,
+    avgPrice: getAvg(list),
+    priceSource: source,
+    addedAt: new Date().toLocaleDateString("nl-NL")
+  });
+  saveCollection();
+  showToast("Toegevoegd aan collectie!");
+  render();
+}
+
+function removeFromCollection(id) {
+  state.collection = state.collection.filter(c => c.id !== id);
+  saveCollection(); render();
+}
+
+function renderHome() {
+  const totalVal = state.collection.reduce((s, c) => s + (c.avgPrice || 0), 0);
+  const isAdded = state.active && !!state.collection.find(c => c.id === state.active.id);
+  return `
+    ${state.showInstallBanner && !state.installPrompt ? `
+    <div class="install-banner">
+      <p>Installeer PokéScan op je telefoon via de deelknop → "Zet op beginscherm"</p>
+      <button class="install-x" onclick="state.showInstallBanner=false;localStorage.setItem('install_dismissed','1');render()">✕</button>
+    </div>` : ""}
+    ${state.installPrompt && state.showInstallBanner ? `
+    <div class="install-banner">
+      <p>Installeer PokéScan als app op je telefoon</p>
+      <button onclick="state.installPrompt.prompt()">Installeer</button>
+      <button class="install-x" onclick="state.showInstallBanner=false;render()">✕</button>
+    </div>` : ""}
+    <div class="surface" style="margin-bottom:12px">
+      <div class="viewfinder">
+        <div class="vf-corner vf-tl"></div><div class="vf-corner vf-tr"></div>
+        <div class="vf-corner vf-bl"></div><div class="vf-corner vf-br"></div>
+        <div class="vf-icon">
+          <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+            <rect x="8" y="14" width="32" height="24" rx="3" stroke="currentColor" stroke-width="1.5" opacity="0.4"/>
+            <circle cx="24" cy="26" r="7" stroke="#EF9F27" stroke-width="1.5"/>
+            <circle cx="24" cy="26" r="3" fill="#EF9F27" opacity="0.35"/>
+            <rect x="20" y="10" width="8" height="4" rx="1.5" fill="currentColor" opacity="0.3"/>
+          </svg>
+          <p>Richt de camera op de naam<br>van je Pokémon kaart</p>
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-gold" onclick="startCamera()" ${state.loading ? "disabled" : ""}>
+      ${state.loading ? "Bezig met zoeken..." : "📷  Kaart scannen"}
+    </button>
+    <div class="divider"><div class="divider-line"></div><span class="divider-txt">of zoek op naam</span><div class="divider-line"></div></div>
+    <div class="search-row">
+      <input type="text" id="q" placeholder="Pikachu, Charizard, Mewtwo..." onkeydown="if(event.key==='Enter')searchCards(document.getElementById('q').value)" />
+      <button onclick="searchCards(document.getElementById('q').value)" ${state.loading ? "disabled" : ""}>Zoek</button>
+    </div>
+    ${state.collection.length > 0 ? `
+    <div class="metrics">
+      <div class="metric"><div class="metric-label">Kaarten in collectie</div><div class="metric-val">${state.collection.length}</div></div>
+      <div class="metric"><div class="metric-label">Geschatte waarde</div><div class="metric-val">${fmt(totalVal)}</div></div>
+    </div>` : ""}
+  `;
+}
+
+function renderCamera() {
+  return `
+    <div class="surface">
+      <div id="camera-container" style="position:relative;width:100%;background:#000;overflow:hidden;border-radius:var(--radius) var(--radius) 0 0;">
+        <video id="video" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;display:block;"></video>
+        <canvas id="canvas" style="display:none"></canvas>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
+          <div id="card-frame" style="width:72%;background:transparent;border:2px solid rgba(239,159,39,0.85);border-radius:8px;position:relative;box-shadow:0 0 0 9999px rgba(0,0,0,0.45)">
+            <div style="position:absolute;top:-2px;left:-2px;width:28px;height:28px;border-top:3px solid #EF9F27;border-left:3px solid #EF9F27;border-radius:6px 0 0 0"></div>
+            <div style="position:absolute;top:-2px;right:-2px;width:28px;height:28px;border-top:3px solid #EF9F27;border-right:3px solid #EF9F27;border-radius:0 6px 0 0"></div>
+            <div style="position:absolute;bottom:-2px;left:-2px;width:28px;height:28px;border-bottom:3px solid #EF9F27;border-left:3px solid #EF9F27;border-radius:0 0 0 6px"></div>
+            <div style="position:absolute;bottom:-2px;right:-2px;width:28px;height:28px;border-bottom:3px solid #EF9F27;border-right:3px solid #EF9F27;border-radius:0 0 6px 0"></div>
+            <div style="position:absolute;top:6px;left:0;right:0;text-align:center">
+              <span style="background:rgba(0,0,0,0.6);color:#fff;font-size:11px;padding:2px 8px;border-radius:10px">naam bovenaan</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="surface-pad">
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px;text-align:center">Leg de kaart in het kader en druk op foto maken</p>
+        <div class="actions">
+          <button class="act-btn" onclick="goScreen('home')">Annuleer</button>
+          <button class="act-btn primary" onclick="captureAndOCR()">📸  Foto maken</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderOcrResult() {
+  return `
+    <div class="surface">
+      ${state.capturedImage ? `<img src="${state.capturedImage}" class="ocr-preview" />` : ""}
+      <div class="ocr-found">
+        <div class="ocr-found-label">Typ de naam van de kaart die je ziet op de foto:</div>
+        <input class="ocr-edit" id="ocr-name-input" type="text"
+          value="${state.ocrName || ""}"
+          placeholder="Bijv. Reshiram, Charizard..."
+          oninput="state.ocrName=this.value"
+          onkeydown="if(event.key==='Enter'){state.ocrName=this.value;searchFromOcr();}"
+          autocomplete="off" autocorrect="off" spellcheck="false" />
+      </div>
+      <div class="surface-pad">
+        <div class="actions">
+          <button class="act-btn" onclick="goScreen('camera')">↩ Opnieuw</button>
+          <button class="act-btn primary" onclick="searchFromOcr()">🔍  Zoeken</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderScanningSpinner() {
+  return `
+    <div class="surface">
+      <div class="viewfinder">
+        <div class="vf-corner vf-tl"></div><div class="vf-corner vf-tr"></div>
+        <div class="vf-corner vf-bl"></div><div class="vf-corner vf-br"></div>
+        <div class="scan-line"></div>
+        <div class="vf-icon">
+          <p style="margin-bottom:8px">Tekst herkennen...</p>
+          <p style="font-size:11px;color:var(--hint)">Bovenste deel van kaart analyseren</p>
+          <div class="progress-bar"><div class="progress-fill"></div></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderResults() {
+  const card = state.active;
+  if (!card) return "";
+  const { list: prices, source } = getPrices(card);
+  const avg = getAvg(prices);
+  const isAdded = !!state.collection.find(c => c.id === card.id);
+  return `
+    <div class="surface">
+      <div class="card-info">
+        ${card.images?.small ? `<img src="${card.images.small}" alt="${card.name}" loading="lazy" />` : ""}
+        <div class="card-info-text">
+          <div class="card-name">${card.name}</div>
+          <div class="card-set">${card.set?.name || ""}</div>
+          <div class="card-num">#${card.number}${card.set?.printedTotal ? " / " + card.set.printedTotal : ""}</div>
+          ${card.rarity ? `<span class="badge">${card.rarity}</span>` : ""}
+        </div>
+      </div>
+    </div>
+    <div class="surface">
+      <div class="prices-header">
+        <span>${source === "Cardmarket" ? "Cardmarket prijzen" : source === "TCGPlayer" ? "TCGPlayer prijzen" : "Prijzen"}</span>
+        ${source ? `<span class="source-pill">${source}</span>` : ""}
+      </div>
+      ${prices.length === 0 ? `<div style="padding:20px;text-align:center;color:var(--hint);font-size:13px">Geen prijsdata beschikbaar</div>` : `
+        ${prices.map((p, i) => `
+          <div class="price-row ${i === 0 ? "highlight" : ""}">
+            <span class="price-label">${i === 0 ? "▼ " : ""}${p.label}</span>
+            <span class="price-val">${fmt(p.value)}</span>
+          </div>
+        `).join("")}
+        <div class="price-avg-row">
+          <span>Gemiddelde (top ${prices.length})</span>
+          <span>${fmt(avg)}</span>
+        </div>
+      `}
+    </div>
+    ${state.cards.length > 1 ? `
+      <div class="surface surface-pad">
+        <div class="thumbs-label">${state.cards.length} versies gevonden — tik om te wisselen</div>
+        <div class="thumbs">
+          ${state.cards.slice(0, 12).map(c => `
+            <img src="${c.images.small}" class="${state.active.id === c.id ? "active" : ""}" onclick="state.active=state.cards.find(x=>x.id==='${c.id}');render()" loading="lazy" />
+          `).join("")}
+        </div>
+      </div>
+    ` : ""}
+    <div class="actions">
+      <button class="act-btn" onclick="goScreen('home')">← Nieuw</button>
+      <button class="act-btn ${isAdded ? "added" : "primary"}" onclick="${isAdded ? "" : "addToCollection()"}">
+        ${isAdded ? "✓ In collectie" : "+ Toevoegen"}
+      </button>
+    </div>
+  `;
+}
+
+function renderCollection() {
+  const total = state.collection.reduce((s, c) => s + (c.avgPrice || 0), 0);
+  if (!state.collection.length) return `
+    <div class="empty">
+      <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+        <rect x="10" y="12" width="32" height="28" rx="3" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="16" y1="22" x2="36" y2="22" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="16" y1="28" x2="30" y2="28" stroke="currentColor" stroke-width="1.5"/>
+        <line x1="16" y1="34" x2="26" y2="34" stroke="currentColor" stroke-width="1.5"/>
+      </svg>
+      <p>Je collectie is nog leeg</p>
+      <button class="btn btn-gold" style="width:auto;padding:12px 24px" onclick="goScreen('home')">Scan je eerste kaart</button>
+    </div>
+  `;
+  return `
+    <div class="metrics" style="margin-bottom:14px">
+      <div class="metric"><div class="metric-label">Totaal kaarten</div><div class="metric-val">${state.collection.length}</div></div>
+      <div class="metric"><div class="metric-label">Geschatte waarde</div><div class="metric-val">${fmt(total)}</div></div>
+    </div>
+    ${state.collection.map(c => `
+      <div class="coll-item" onclick="state.active=null;searchCards('${c.name}')">
+        ${c.images?.small ? `<img src="${c.images.small}" loading="lazy" />` : ""}
+        <div class="coll-info">
+          <div class="coll-name">${c.name}</div>
+          <div class="coll-set">${c.set?.name || ""}</div>
+          <div class="coll-date">Toegevoegd ${c.addedAt}</div>
+        </div>
+        <div class="coll-val">
+          <div class="coll-price">${fmt(c.avgPrice)}</div>
+          <div class="coll-price-label">gem. waarde</div>
+        </div>
+      </div>
+    `).join("")}
+  `;
+}
+
+function render() {
+  const body = document.getElementById("body");
+  document.getElementById("tab-scan").className = "tab" + (["home","camera","scanning","ocrresult","results"].includes(state.screen) ? " active" : "");
+  document.getElementById("tab-coll").className = "tab" + (state.screen === "collection" ? " active" : "");
+  const count = state.collection.length;
+  document.getElementById("coll-count").textContent = count > 0 ? `(${count})` : "";
+
+  if (state.screen === "home") body.innerHTML = renderHome();
+  else if (state.screen === "camera") body.innerHTML = renderCamera();
+  else if (state.screen === "scanning") body.innerHTML = renderScanningSpinner();
+  else if (state.screen === "ocrresult") body.innerHTML = renderOcrResult();
+  else if (state.screen === "results") body.innerHTML = renderResults();
+  else if (state.screen === "collection") body.innerHTML = renderCollection();
+
+  // Fix portrait camera height on iOS (aspect-ratio CSS unreliable in WebViews)
+  if (state.screen === "camera") {
+    requestAnimationFrame(() => {
+      const c = document.getElementById("camera-container");
+      const f = document.getElementById("card-frame");
+      if (c) {
+        const w = c.offsetWidth;
+        c.style.height = Math.round(w * 1.4) + "px";
+        if (f) f.style.height = Math.round(w * 0.72 * 1.4) + "px";
+      }
+    });
+  }
+
+  if (state.toast) {
+    let t = document.getElementById("toast-el");
+    if (!t) { t = document.createElement("div"); t.id = "toast-el"; t.className = "toast"; document.body.appendChild(t); }
+    t.textContent = state.toast;
+  } else {
+    const t = document.getElementById("toast-el");
+    if (t) t.remove();
+  }
+}
+
+render();
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js");
+}
+</script>
+</body>
+</html>
